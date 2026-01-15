@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
+
+# No subas data real
+data/
+private_data/
+data/*.csv
+private_data/*.csv
+
+# Excel reales suelen tener info sensible
+*.xlsx
+*.xls
