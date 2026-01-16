@@ -40,12 +40,32 @@ def read_sample(filename: str) -> pd.DataFrame:
 with st.sidebar:
     st.header("Cargar archivos")
     st.write("Sube tus Excel/CSV. Si no tienes a la mano, usa las plantillas ficticias.")
-    use_samples = st.checkbox("Usar datos de ejemplo si no subo archivos", value=True)
+    use_samples = st.checkbox(
+        "Usar datos de ejemplo si no subo archivos",
+        value=True,
+        key="use_samples_checkbox",
+    )
 
-    up_lines = st.file_uploader("1) Líneas ESFS (csv/xlsx)", type=["csv", "xlsx", "xls"], key="lines")
-    up_disb = st.file_uploader("2) Desembolsos IFI diarios (csv/xlsx)", type=["csv", "xlsx", "xls"], key="disb")
-    up_splaft = st.file_uploader("3) SPLAFT (csv/xlsx)", type=["csv", "xlsx", "xls"], key="splaft")
-    up_contacts = st.file_uploader("4) Contactos ESFS/IFI (csv/xlsx)", type=["csv", "xlsx", "xls"], key="contacts")
+    up_lines = st.file_uploader(
+        "1) Líneas ESFS (csv/xlsx)",
+        type=["csv", "xlsx", "xls"],
+        key="uploader_lines",
+    )
+    up_disb = st.file_uploader(
+        "2) Desembolsos IFI diarios (csv/xlsx)",
+        type=["csv", "xlsx", "xls"],
+        key="uploader_disb",
+    )
+    up_splaft = st.file_uploader(
+        "3) SPLAFT (csv/xlsx)",
+        type=["csv", "xlsx", "xls"],
+        key="uploader_splaft",
+    )
+    up_contacts = st.file_uploader(
+        "4) Contactos ESFS/IFI (csv/xlsx)",
+        type=["csv", "xlsx", "xls"],
+        key="uploader_contacts",
+    )
 
     st.divider()
     st.markdown(
@@ -94,10 +114,13 @@ with tabs[0]:
     else:
         df = lines_df.copy()
 
-        # KPIs
         monto_aprobado = float(df["monto_aprobado"].sum()) if "monto_aprobado" in df.columns else 0.0
         monto_utilizado = float(df["monto_utilizado"].sum()) if "monto_utilizado" in df.columns else 0.0
-        uso_pct_prom = float(df["uso_pct"].mean()) if "uso_pct" in df.columns and df["uso_pct"].notna().any() else 0.0
+        uso_pct_prom = (
+            float(df["uso_pct"].mean())
+            if "uso_pct" in df.columns and df["uso_pct"].notna().any()
+            else 0.0
+        )
         n_esfs = df["esfs"].nunique() if "esfs" in df.columns else len(df)
 
         c1, c2, c3, c4 = st.columns(4)
@@ -106,10 +129,10 @@ with tabs[0]:
         c3.metric("Monto utilizado (sum)", f"{monto_utilizado:,.0f}")
         c4.metric("Uso promedio", f"{uso_pct_prom:,.1f}%")
 
-        # Filters
+        # Filters (KEY ÚNICO)
         if "esfs" in df.columns:
             esfs_list = sorted(df["esfs"].dropna().unique().tolist())
-            selected = st.multiselect("Filtrar ESFS", esfs_list)
+            selected = st.multiselect("Filtrar ESFS", esfs_list, key="filter_esfs_lines")
             if selected:
                 df = df[df["esfs"].isin(selected)]
 
@@ -121,7 +144,11 @@ with tabs[0]:
             soon = df[df["fecha_vigencia"].notna() & (df["fecha_vigencia"] <= today + pd.Timedelta(days=30))]
             if len(soon) > 0:
                 st.warning("Líneas por vencer en <= 30 días")
-                cols = [c for c in ["esfs", "tipo_linea", "monto_aprobado", "saldo_disponible", "fecha_vigencia"] if c in soon.columns]
+                cols = [
+                    c for c in
+                    ["esfs", "tipo_linea", "monto_aprobado", "saldo_disponible", "fecha_vigencia"]
+                    if c in soon.columns
+                ]
                 st.dataframe(soon[cols], use_container_width=True)
 
 
@@ -154,9 +181,10 @@ with tabs[1]:
         c3.metric("Desembolso última fecha", f"{last_day_total:,.0f}")
         c4.metric("Últimos 7 días", f"{last_7_total:,.0f}")
 
+        # Filters (KEY ÚNICO)
         if "ifi" in df.columns:
             ifi_list = sorted(df["ifi"].dropna().unique().tolist())
-            selected = st.multiselect("Filtrar IFI", ifi_list)
+            selected = st.multiselect("Filtrar IFI", ifi_list, key="filter_ifi_disb")
             if selected:
                 df = df[df["ifi"].isin(selected)]
 
@@ -179,9 +207,10 @@ with tabs[2]:
             status_counts.columns = ["estado", "cantidad"]
             st.dataframe(status_counts, use_container_width=True)
 
+        # Filters (KEY ÚNICO) — OJO: mismo label que Líneas, pero key distinto
         if "esfs" in df.columns:
             esfs_list = sorted(df["esfs"].dropna().unique().tolist())
-            selected = st.multiselect("Filtrar ESFS", esfs_list)
+            selected = st.multiselect("Filtrar ESFS", esfs_list, key="filter_esfs_splaft")
             if selected:
                 df = df[df["esfs"].isin(selected)]
 
@@ -221,9 +250,10 @@ with tabs[3]:
         c3.metric("Sin teléfono", missing_phone)
         c4.metric("Correos duplicados", duplicates)
 
+        # Filters (KEY ÚNICO)
         if "institucion" in df.columns:
             inst_list = sorted(df["institucion"].dropna().unique().tolist())
-            selected = st.multiselect("Filtrar institución", inst_list)
+            selected = st.multiselect("Filtrar institución", inst_list, key="filter_inst_contacts")
             if selected:
                 df = df[df["institucion"].isin(selected)]
 
@@ -233,7 +263,7 @@ with tabs[3]:
 # ---------- TAB 5: Export ----------
 with tabs[4]:
     st.subheader("Exportar reporte (Excel)")
-    st.write("Genera un Excel con hojas limpias + un resumen rápido. Útil como evidencia de trazabilidad y control.")
+    st.write("Genera un Excel con hojas limpias + un resumen rápido.")
 
     if all(x is None for x in [lines_df, disb_df, splaft_df, contacts_df]):
         st.info("Carga al menos un archivo para habilitar exportación.")
@@ -280,4 +310,5 @@ with tabs[4]:
             data=output,
             file_name="fmv_tracker_reporte.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_excel",  # KEY ÚNICO
         )
